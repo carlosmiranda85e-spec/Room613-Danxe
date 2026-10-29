@@ -1,5 +1,7 @@
-﻿/*
- * Script used by mannequinAI to see if the mannequin is close enough to the player to move
+
+/*
+ * D4NXE EDITION - Mannequin Detection
+ * Detección configurable del jugador.
  */
 
 using System.Collections;
@@ -8,18 +10,35 @@ using UnityEngine;
 
 public class MannequinDetection : MonoBehaviour
 {
+    [Header("D4NXE - Detección")]
     public MannequinAIScript thisMannequin;
+
+    [Tooltip("Activar o desactivar la detección del jugador.")]
+    public bool deteccionActiva = true;
+
+    private bool jugadorDentro = false;
 
     private void Start()
     {
-        thisMannequin.playerundetected();
+        if (thisMannequin != null)
+        {
+            thisMannequin.playerundetected();
+        }
     }
 
     private void OnTriggerEnter(Collider other)
     {
+        if (!deteccionActiva)
+            return;
+
         if (other.CompareTag("Player"))
         {
-            thisMannequin.playerdetected();
+            jugadorDentro = true;
+
+            if (thisMannequin != null)
+            {
+                thisMannequin.playerdetected();
+            }
         }
     }
 
@@ -27,7 +46,27 @@ public class MannequinDetection : MonoBehaviour
     {
         if (other.CompareTag("Player"))
         {
-            thisMannequin.playerundetected();
+            jugadorDentro = false;
+
+            if (thisMannequin != null)
+            {
+                thisMannequin.playerundetected();
+            }
+        }
+    }
+
+    public void ActivarDeteccion(bool activar)
+    {
+        deteccionActiva = activar;
+
+        if (!activar && jugadorDentro)
+        {
+            jugadorDentro = false;
+
+            if (thisMannequin != null)
+            {
+                thisMannequin.playerundetected();
+            }
         }
     }
 }
