@@ -1,8 +1,7 @@
 
 /*
  * D4NXE EDITION - Mannequin AI
- * Mantiene el comportamiento original y permite
- * configurar la velocidad de persecución.
+ * Persecución configurable y teletransporte terrorífico.
  */
 
 using System.Collections;
@@ -22,6 +21,10 @@ public class MannequinAIScript : MonoBehaviour
     [Min(0.1f)]
     public float velocidadPersecucion = 4f;
 
+    [Header("D4NXE - Efecto de aparición")]
+    [Min(0f)]
+    public float tiempoDesaparicion = 1.2f;
+
     public GameObject self;
     NavMeshPath path;
 
@@ -29,8 +32,9 @@ public class MannequinAIScript : MonoBehaviour
     public AudioSource chasesound;
     public AudioSource teleportsound;
     bool playing = false;
+    bool teleportando = false;
 
-    // Puntos de detección y aparición
+    // Puntos de detección
     public SpawnDetectionScript A;
     public SpawnDetectionScript B;
     public SpawnDetectionScript C;
@@ -39,6 +43,7 @@ public class MannequinAIScript : MonoBehaviour
 
     public SpawnDetectionScript[] SDS;
 
+    // Ubicaciones de teletransporte
     private Vector3[] TeleportLocations = new Vector3[]
     {
         new Vector3(0.5f, 1, 22),
@@ -58,6 +63,9 @@ public class MannequinAIScript : MonoBehaviour
 
     void Update()
     {
+        if (teleportando)
+            return;
+
         if (Chasing)
         {
             NavMeshPath currentPath = new NavMeshPath();
@@ -96,12 +104,16 @@ public class MannequinAIScript : MonoBehaviour
     {
         if (!playing && todo)
         {
-            chasesound.Play();
+            if (chasesound != null)
+                chasesound.Play();
+
             playing = true;
         }
         else if (playing && !todo)
         {
-            chasesound.Stop();
+            if (chasesound != null)
+                chasesound.Stop();
+
             playing = false;
         }
     }
@@ -118,7 +130,12 @@ public class MannequinAIScript : MonoBehaviour
 
     private void teleportme()
     {
-        if (!SDS[prefLoc].actorDetected)
+        if (teleportando || SDS == null || SDS.Length == 0)
+            return;
+
+        if (prefLoc >= 0 && prefLoc < SDS.Length &&
+            SDS[prefLoc] != null &&
+            !SDS[prefLoc].actorDetected)
         {
             TeleportStart();
         }
@@ -126,7 +143,7 @@ public class MannequinAIScript : MonoBehaviour
         {
             for (int i = 0; i < SDS.Length; i++)
             {
-                if (!SDS[i].actorDetected)
+                if (SDS[i] != null && !SDS[i].actorDetected)
                 {
                     TeleportStart(i);
                     return;
@@ -137,18 +154,49 @@ public class MannequinAIScript : MonoBehaviour
 
     private void TeleportStart()
     {
-        self.GetComponent<NavMeshAgent>().enabled = false;
-        teleportsound.Play();
-        self.transform.localPosition = TeleportLocations[prefLoc];
-        self.GetComponent<NavMeshAgent>().enabled = true;
+        StartCoroutine(TeleportHorrorEffect(prefLoc));
     }
 
     private void TeleportStart(int i)
     {
-        self.GetComponent<NavMeshAgent>().enabled = false;
-        teleportsound.Play();
-        self.transform.localPosition = TeleportLocations[i];
-        self.GetComponent<NavMeshAgent>().enabled = true;
+        StartCoroutine(TeleportHorrorEffect(i));
+    }
+
+    private IEnumerator TeleportHorrorEffect(int location)
+    {
+        if (location < 0 || location >= TeleportLocations.Length)
+            yield break;
+
+        teleportando = true;
+
+        NavMeshAgent agent = self.GetComponent<NavMeshAgent>();
+
+        if (agent != null)
+            agent.enabled = false;
+
+        Renderer[] renderers =
+            self.GetComponentsInChildren<Renderer>(true);
+
+        foreach (Renderer r in renderers)
+            r.enabled = false;
+
+        if (teleportsound != null)
+            teleportsound.Play();
+
+        yield return new WaitForSeconds(tiempoDesaparicion);
+
+        self.transform.localPosition = TeleportLocations[location];
+
+        foreach (Renderer r in renderers)
+            r.enabled = true;
+
+        if (agent != null)
+        {
+            agent.enabled = true;
+            agent.isStopped = false;
+        }
+
+        teleportando = false;
     }
 
     private void TeleportEnd()
